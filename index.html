@@ -1,0 +1,1838 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>办公用品领用登记系统</title>
+
+    <!-- 二维码生成库 -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js">
+    </script>
+
+    <style>
+        :root {
+            --primary: #4A6CF7;
+            --primary-dark: #3651d5;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --bg: #f0f4f8;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08), 0 4px 10px rgba(0, 0, 0, 0.05);
+            --radius: 12px;
+            --radius-sm: 8px;
+            --transition: 0.2s ease;
+            --font-mono: 'SF Mono', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ========== 顶部导航栏 ========== */
+        .app-header {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow);
+        }
+        .app-header .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: -0.3px;
+        }
+        .app-header .logo .icon {
+            width: 36px;
+            height: 36px;
+            background: var(--primary);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #fff;
+        }
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .badge-low-stock {
+            background: #fef3c7;
+            color: #b45309;
+            cursor: pointer;
+            transition: var(--transition);
+            border: 1px solid #fde68a;
+        }
+        .badge-low-stock:hover {
+            background: #fde68a;
+        }
+        .badge-count {
+            background: #fef2f2;
+            color: #dc2626;
+            font-weight: 700;
+            min-width: 22px;
+            height: 22px;
+            border-radius: 11px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            padding: 0 6px;
+        }
+
+        /* ========== 视图容器 ========== */
+        .view {
+            display: none;
+            animation: fadeSlideIn 0.35s ease;
+        }
+        .view.active {
+            display: block;
+        }
+        @keyframes fadeSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ========== 后台管理布局 ========== */
+        .admin-container {
+            max-width: 1300px;
+            margin: 0 auto;
+            padding: 24px 20px 40px;
+        }
+        .tab-nav {
+            display: flex;
+            gap: 4px;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 5px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: var(--transition);
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .tab-btn:hover {
+            background: #f1f5f9;
+            color: var(--text);
+        }
+        .tab-btn.active {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(74, 108, 247, 0.35);
+        }
+        .tab-panel {
+            display: none;
+            animation: fadeSlideIn 0.3s ease;
+        }
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* ========== 卡片样式 ========== */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+            transition: var(--transition);
+        }
+        .card:hover {
+            box-shadow: var(--shadow-lg);
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .card-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-title .emoji {
+            font-size: 22px;
+        }
+
+        /* ========== 统计卡片网格 ========== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: var(--transition);
+            cursor: default;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+        .stat-icon.blue {
+            background: #eff6ff;
+        }
+        .stat-icon.green {
+            background: #ecfdf5;
+        }
+        .stat-icon.orange {
+            background: #fffbeb;
+        }
+        .stat-icon.red {
+            background: #fef2f2;
+        }
+        .stat-info .stat-value {
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.5px;
+        }
+        .stat-info .stat-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* ========== 表单样式 ========== */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .form-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.2px;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 10px 14px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-family: inherit;
+            transition: var(--transition);
+            background: #fafbfc;
+            color: var(--text);
+            width: 100%;
+            outline: none;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: var(--primary);
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.08);
+        }
+        .form-group textarea {
+            resize: vertical;
+            min-height: 70px;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            letter-spacing: 0.2px;
+            white-space: nowrap;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 2px 6px rgba(74, 108, 247, 0.3);
+        }
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            box-shadow: 0 4px 12px rgba(74, 108, 247, 0.4);
+            transform: translateY(-1px);
+        }
+        .btn-success {
+            background: var(--success);
+            color: #fff;
+        }
+        .btn-success:hover {
+            opacity: 0.9;
+        }
+        .btn-danger {
+            background: #fff;
+            color: var(--danger);
+            border: 2px solid #fecaca;
+        }
+        .btn-danger:hover {
+            background: #fef2f2;
+            border-color: var(--danger);
+        }
+        .btn-outline {
+            background: #fff;
+            color: var(--primary);
+            border: 2px solid var(--border);
+        }
+        .btn-outline:hover {
+            border-color: var(--primary);
+            background: #f8faff;
+        }
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 6px;
+        }
+        .btn-xs {
+            padding: 3px 10px;
+            font-size: 11px;
+            border-radius: 5px;
+        }
+
+        /* ========== 表格样式 ========== */
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            min-width: 700px;
+        }
+        table th,
+        table td {
+            padding: 12px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        table th {
+            background: #f8fafc;
+            font-weight: 700;
+            color: var(--text-secondary);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+        }
+        table tbody tr {
+            transition: var(--transition);
+        }
+        table tbody tr:hover {
+            background: #f8faff;
+        }
+        .tag {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+        .tag-in {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .tag-out {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .stock-low {
+            color: var(--danger);
+            font-weight: 700;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--text-secondary);
+        }
+        .empty-state .icon {
+            font-size: 52px;
+            margin-bottom: 12px;
+        }
+
+        /* ========== 扫码领用页面（移动端优化） ========== */
+        .form-view-container {
+            max-width: 520px;
+            margin: 0 auto;
+            padding: 20px 16px 40px;
+        }
+        .form-view-container .card {
+            padding: 28px 22px;
+        }
+        .form-view-container .form-group input,
+        .form-view-container .form-group select,
+        .form-view-container .form-group textarea {
+            padding: 13px 16px;
+            font-size: 16px;
+            /* 移动端更大 */;
+        }
+        .form-view-container .btn {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            justify-content: center;
+            border-radius: 10px;
+        }
+        .success-message {
+            text-align: center;
+            padding: 32px 20px;
+            animation: fadeSlideIn 0.4s ease;
+        }
+        .success-message .check-icon {
+            font-size: 64px;
+            display: block;
+            margin-bottom: 12px;
+        }
+        .success-message h3 {
+            color: var(--success);
+            font-size: 20px;
+            margin-bottom: 6px;
+        }
+        .form-view-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .form-view-header h2 {
+            font-size: 22px;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+        .form-view-header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* ========== 二维码区域 ========== */
+        .qr-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+            align-items: flex-start;
+        }
+        .qr-preview {
+            flex-shrink: 0;
+            background: #fff;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            border: 2px dashed var(--border);
+            text-align: center;
+            min-width: 180px;
+        }
+        .qr-preview canvas,
+        .qr-preview img {
+            display: block;
+            margin: 0 auto;
+            border-radius: 4px;
+        }
+        .qr-info {
+            flex: 1;
+            min-width: 250px;
+        }
+        .url-display {
+            background: #f8fafc;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-size: 13px;
+            word-break: break-all;
+            color: var(--text);
+            border: 1px solid var(--border);
+            margin: 8px 0;
+        }
+
+        /* ========== 提示消息 ========== */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            padding: 14px 20px;
+            border-radius: 10px;
+            color: #fff;
+            font-weight: 600;
+            font-size: 14px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            animation: slideInRight 0.35s ease;
+            max-width: 420px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .toast.success {
+            background: #059669;
+        }
+        .toast.error {
+            background: #dc2626;
+        }
+        .toast.warning {
+            background: #d97706;
+        }
+        @keyframes slideInRight {
+            from {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* ========== 响应式 ========== */
+        @media (max-width: 768px) {
+            .app-header {
+                padding: 0 14px;
+                height: 52px;
+            }
+            .app-header .logo {
+                font-size: 15px;
+                gap: 6px;
+            }
+            .app-header .logo .icon {
+                width: 28px;
+                height: 28px;
+                font-size: 16px;
+                border-radius: 7px;
+            }
+            .tab-btn {
+                padding: 8px 14px;
+                font-size: 12px;
+            }
+            .card {
+                padding: 16px;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+            .stat-card {
+                padding: 14px 16px;
+                gap: 10px;
+            }
+            .stat-icon {
+                width: 38px;
+                height: 38px;
+                font-size: 18px;
+                border-radius: 10px;
+            }
+            .stat-info .stat-value {
+                font-size: 20px;
+            }
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            .qr-section {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+        @media (max-width: 400px) {
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+            .stat-card {
+                padding: 10px 12px;
+                gap: 8px;
+            }
+            .stat-icon {
+                width: 32px;
+                height: 32px;
+                font-size: 16px;
+                border-radius: 8px;
+            }
+            .stat-info .stat-value {
+                font-size: 18px;
+            }
+            .stat-info .stat-label {
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ==================== 顶部导航 ==================== -->
+    <header class="app-header">
+        <div class="logo">
+            <span class="icon">📋</span>
+            <span>办公用品领用登记系统</span>
+        </div>
+        <div class="header-actions">
+            <span class="badge badge-low-stock" id="lowStockBadge" onclick="switchToInventory()" style="display:none;" title="点击查看低库存物品">
+                ⚠️ 低库存 <span class="badge-count" id="lowStockCount">0</span>
+            </span>
+            <button class="btn btn-outline btn-sm" onclick="switchView('admin')" id="btnToAdmin" style="display:none;">
+                ⚙️ 后台管理
+            </button>
+            <button class="btn btn-outline btn-sm" onclick="switchView('form')" id="btnToForm">
+                📱 领用表单预览
+            </button>
+        </div>
+    </header>
+
+    <!-- ==================== 后台管理视图 ==================== -->
+    <div class="view active" id="viewAdmin">
+        <div class="admin-container">
+            <!-- 统计卡片 -->
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card">
+                    <div class="stat-icon blue">📦</div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="statTotalItems">0</div>
+                        <div class="stat-label">物品品类数</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green">✅</div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="statTotalStock">0</div>
+                        <div class="stat-label">库存总量</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon orange">📤</div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="statTotalOut">0</div>
+                        <div class="stat-label">总出库次数</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon red">🔻</div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="statLowStock">0</div>
+                        <div class="stat-label">低库存预警</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 标签导航 -->
+            <div class="tab-nav" id="adminTabNav">
+                <button class="tab-btn active" data-tab="tab-inventory">📋 库存管理</button>
+                <button class="tab-btn" data-tab="tab-stock-in">📥 入库登记</button>
+                <button class="tab-btn" data-tab="tab-stock-out">📤 手动出库</button>
+                <button class="tab-btn" data-tab="tab-records">📝 出入库记录</button>
+                <button class="tab-btn" data-tab="tab-qrcode">📱 二维码生成</button>
+                <button class="tab-btn" data-tab="tab-item-mgmt">➕ 物品管理</button>
+            </div>
+
+            <!-- ===== 面板：库存管理 ===== -->
+            <div class="tab-panel active" id="tab-inventory">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title"><span class="emoji">📋</span>当前库存一览</span>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <input type="text" id="inventorySearch" placeholder="🔍 搜索物品..." style="padding:8px 14px;border:2px solid var(--border);border-radius:8px;font-size:13px;width:200px;outline:none;" oninput="renderInventory()">
+                            <button class="btn btn-outline btn-sm" onclick="exportCSV()">📥 导出CSV</button>
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>物品名称</th>
+                                    <th>分类</th>
+                                    <th>当前库存</th>
+                                    <th>单位</th>
+                                    <th>最低库存预警</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventoryTableBody">
+                                <tr><td colspan="7" class="empty-state"><span class="icon">📭</span><br>暂无物品，请先在"物品管理"中添加</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== 面板：入库登记 ===== -->
+            <div class="tab-panel" id="tab-stock-in">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title"><span class="emoji">📥</span>入库登记</span>
+                    </div>
+                    <div class="form-grid" style="margin-bottom:16px;">
+                        <div class="form-group">
+                            <label>物品名称 *</label>
+                            <select id="inItemSelect">
+                                <option value="">-- 请选择物品 --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>入库数量 *</label>
+                            <input type="number" id="inQuantity" min="1" value="1" placeholder="请输入数量">
+                        </div>
+                        <div class="form-group">
+                            <label>供应商</label>
+                            <input type="text" id="inSupplier" placeholder="如：xx文具店">
+                        </div>
+                        <div class="form-group">
+                            <label>入库日期</label>
+                            <input type="date" id="inDate">
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:16px;">
+                        <label>备注</label>
+                        <textarea id="inRemark" placeholder="可选备注信息" rows="2"></textarea>
+                    </div>
+                    <button class="btn btn-success" onclick="stockIn()">✅ 确认入库</button>
+                </div>
+            </div>
+
+            <!-- ===== 面板：手动出库 ===== -->
+            <div class="tab-panel" id="tab-stock-out">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title"><span class="emoji">📤</span>手动出库登记（管理员操作）</span>
+                    </div>
+                    <div class="form-grid" style="margin-bottom:16px;">
+                        <div class="form-group">
+                            <label>物品名称 *</label>
+                            <select id="outItemSelect">
+                                <option value="">-- 请选择物品 --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>出库数量 *</label>
+                            <input type="number" id="outQuantity" min="1" value="1" placeholder="请输入数量">
+                        </div>
+                        <div class="form-group">
+                            <label>领用人 *</label>
+                            <input type="text" id="outPerson" placeholder="领用人姓名">
+                        </div>
+                        <div class="form-group">
+                            <label>部门</label>
+                            <input type="text" id="outDepartment" placeholder="如：技术部">
+                        </div>
+                        <div class="form-group">
+                            <label>出库日期</label>
+                            <input type="date" id="outDate">
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:16px;">
+                        <label>备注</label>
+                        <textarea id="outRemark" placeholder="可选备注信息" rows="2"></textarea>
+                    </div>
+                    <button class="btn btn-danger" onclick="stockOut()">📤 确认出库</button>
+                </div>
+            </div>
+
+            <!-- ===== 面板：出入库记录 ===== -->
+            <div class="tab-panel" id="tab-records">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title"><span class="emoji">📝</span>出入库记录</span>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                            <select id="recordTypeFilter" onchange="renderRecords()" style="padding:8px 12px;border:2px solid var(--border);border-radius:8px;font-size:13px;">
+                                <option value="all">全部类型</option>
+                                <option value="in">入库</option>
+                                <option value="out">出库</option>
+                            </select>
+                            <input type="date" id="recordDateFilter" onchange="renderRecords()" style="padding:8px 12px;border:2px solid var(--border);border-radius:8px;font-size:13px;" title="按日期筛选">
+                            <button class="btn btn-outline btn-sm" onclick="clearRecordFilters()">清除筛选</button>
+                            <button class="btn btn-danger btn-sm" onclick="clearAllRecords()">🗑 清空记录</button>
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>时间</th>
+                                    <th>类型</th>
+                                    <th>物品</th>
+                                    <th>数量</th>
+                                    <th>领用人/操作人</th>
+                                    <th>部门</th>
+                                    <th>供应商</th>
+                                    <th>备注</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recordsTableBody">
+                                <tr><td colspan="9" class="empty-state"><span class="icon">📭</span><br>暂无记录</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== 面板：二维码生成 ===== -->
+            <div class="tab-panel" id="tab-qrcode">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title"><span class="emoji">📱</span>生成领用登记二维码</span>
+                    </div>
+                    <div class="qr-section">
+                        <div class="qr-preview" id="qrCodeContainer">
+                            <p style="color:var(--text-secondary);padding:20px;">正在生成二维码...</p>
+                        </div>
+                        <div class="qr-info">
+                            <p style="font-weight:600;margin-bottom:4px;">📌 扫码领用地址：</p>
+                            <div class="url-display" id="formUrlDisplay"></div>
+                            <p style="font-size:12px;color:var(--text-secondary);margin-top:8px;">
+                                💡 <strong>使用说明：</strong>将此二维码打印并张贴在办公区域，员工扫码即可填写领用登记表单。扫码后自动扣减库存并生成出库记录。
+                            </p>
+                            <p style="font-size:12px;color:var(--warning);margin-top:4px;">
+                                ⚠️ 请确保此页面部署在可访问的服务器上（或局域网内），手机才能正常扫码访问。
+                            </p>
+                            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                                <button class="btn btn-primary btn-sm" onclick="regenerateQR()">🔄 重新生成</button>
+                                <button class="btn btn-outline btn-sm" onclick="printQR()">🖨 打印二维码</button>
+                                <button class="btn btn-outline btn-sm" onclick="copyFormUrl()">📋 复制链接</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== 面板：物品管理 ===== -->
+            <div class="tab-panel" id="tab-item-mgmt">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title"><span class="emoji">➕</span>添加新物品</span>
+                    </div>
+                    <div class="form-grid" style="margin-bottom:16px;">
+                        <div class="form-group">
+                            <label>物品名称 *</label>
+                            <input type="text" id="newItemName" placeholder="如：文件夹">
+                        </div>
+                        <div class="form-group">
+                            <label>分类</label>
+                            <input type="text" id="newItemCategory" placeholder="如：文具">
+                        </div>
+                        <div class="form-group">
+                            <label>单位</label>
+                            <input type="text" id="newItemUnit" value="个" placeholder="如：个、包、支">
+                        </div>
+                        <div class="form-group">
+                            <label>初始库存</label>
+                            <input type="number" id="newItemQty" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>最低库存预警</label>
+                            <input type="number" id="newItemMinStock" min="0" value="5">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="addNewItem()">➕ 添加物品</button>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title"><span class="emoji">🗂</span>所有物品列表</span>
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>物品名称</th>
+                                    <th>分类</th>
+                                    <th>单位</th>
+                                    <th>当前库存</th>
+                                    <th>最低预警</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="allItemsTableBody">
+                                <tr><td colspan="6" class="empty-state"><span class="icon">📭</span><br>暂无物品</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 扫码领用表单视图 ==================== -->
+    <div class="view" id="viewForm">
+        <div class="form-view-container">
+            <div class="form-view-header">
+                <h2>📋 办公用品领用登记</h2>
+                <p>请填写以下信息完成领用</p>
+            </div>
+            <div class="card" id="formCard">
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label>领用物品 *</label>
+                    <select id="formItemSelect" style="width:100%;">
+                        <option value="">-- 请选择物品 --</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label>领用数量 *</label>
+                    <input type="number" id="formQuantity" min="1" value="1" placeholder="请输入领用数量" style="width:100%;">
+                </div>
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label>领用人姓名 *</label>
+                    <input type="text" id="formPerson" placeholder="请输入您的姓名" style="width:100%;">
+                </div>
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label>部门</label>
+                    <input type="text" id="formDepartment" placeholder="如：技术部、行政部" style="width:100%;">
+                </div>
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label>领用日期</label>
+                    <input type="date" id="formDate" style="width:100%;">
+                </div>
+                <div class="form-group" style="margin-bottom:18px;">
+                    <label>备注</label>
+                    <textarea id="formRemark" placeholder="如有特殊说明请填写" rows="2" style="width:100%;"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="submitFormRequest()" style="width:100%;">
+                    ✅ 提交领用申请
+                </button>
+                <p style="text-align:center;font-size:12px;color:var(--text-secondary);margin-top:10px;">
+                    提交后将自动扣减库存
+                </p>
+            </div>
+            <!-- 提交成功后显示 -->
+            <div class="card success-message" id="formSuccess" style="display:none;">
+                <span class="check-icon">✅</span>
+                <h3>领用登记成功！</h3>
+                <p id="formSuccessMsg"></p>
+                <button class="btn btn-outline" onclick="resetFormView()" style="margin-top:12px;">📝 继续登记</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast容器 -->
+    <div id="toastContainer"></div>
+
+    <script>
+        (function() {
+            // ==================== 数据管理 ====================
+            const STORAGE_KEY_ITEMS = 'office_items_v2';
+            const STORAGE_KEY_RECORDS = 'office_records_v2';
+
+            // 预设物品
+            const DEFAULT_ITEMS = [
+                { id: 1, name: 'A4打印纸', category: '纸品', unit: '包', quantity: 50, minStock: 10 },
+                { id: 2, name: '签字笔（黑色）', category: '文具', unit: '支', quantity: 120, minStock: 30 },
+                { id: 3, name: '笔记本', category: '文具', unit: '本', quantity: 80, minStock: 15 },
+                { id: 4, name: '文件夹', category: '文具', unit: '个', quantity: 45, minStock: 10 },
+                { id: 5, name: '透明胶带', category: '耗材', unit: '卷', quantity: 30, minStock: 8 },
+                { id: 6, name: '订书机', category: '工具', unit: '个', quantity: 15, minStock: 3 },
+                { id: 7, name: '订书钉', category: '耗材', unit: '盒', quantity: 60, minStock: 15 },
+                { id: 8, name: '便利贴', category: '文具', unit: '包', quantity: 40, minStock: 10 },
+                { id: 9, name: '马克笔', category: '文具', unit: '支', quantity: 25, minStock: 8 },
+                { id: 10, name: '打印墨盒', category: '耗材', unit: '个', quantity: 12, minStock: 3 },
+            ];
+
+            function loadItems() {
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY_ITEMS);
+                    if (raw) {
+                        const data = JSON.parse(raw);
+                        if (Array.isArray(data) && data.length > 0) return data;
+                    }
+                } catch (e) { /* ignore */ }
+                // 首次使用，初始化预设数据
+                saveItems(DEFAULT_ITEMS);
+                return JSON.parse(JSON.stringify(DEFAULT_ITEMS));
+            }
+
+            function saveItems(items) {
+                localStorage.setItem(STORAGE_KEY_ITEMS, JSON.stringify(items));
+            }
+
+            function loadRecords() {
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY_RECORDS);
+                    if (raw) {
+                        const data = JSON.parse(raw);
+                        if (Array.isArray(data)) return data;
+                    }
+                } catch (e) { /* ignore */ }
+                return [];
+            }
+
+            function saveRecords(records) {
+                localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records));
+            }
+
+            let items = loadItems();
+            let records = loadRecords();
+            let nextItemId = items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
+            let nextRecordId = records.length > 0 ? Math.max(...records.map(r => r.id)) + 1 : 1;
+
+            function refreshData() {
+                items = loadItems();
+                records = loadRecords();
+                nextItemId = items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
+                nextRecordId = records.length > 0 ? Math.max(...records.map(r => r.id)) + 1 : 1;
+            }
+
+            // ==================== Toast提示 ====================
+            function showToast(message, type = 'success') {
+                const container = document.getElementById('toastContainer');
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                const icons = { success: '✅', error: '❌', warning: '⚠️' };
+                toast.innerHTML = `<span>${icons[type] || ''}</span> ${message}`;
+                container.appendChild(toast);
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateX(120%)';
+                    toast.style.transition = '0.3s ease';
+                    setTimeout(() => toast.remove(), 300);
+                }, 2800);
+            }
+
+            // ==================== 视图切换 ====================
+            function switchView(viewName) {
+                document.getElementById('viewAdmin').classList.toggle('active', viewName === 'admin');
+                document.getElementById('viewForm').classList.toggle('active', viewName === 'form');
+                document.getElementById('btnToAdmin').style.display = viewName === 'form' ? '' : 'none';
+                document.getElementById('btnToForm').style.display = viewName === 'admin' ? '' : 'none';
+
+                if (viewName === 'form') {
+                    populateFormItemSelect();
+                    setDefaultDates();
+                }
+                if (viewName === 'admin') {
+                    refreshAllAdminUI();
+                }
+                // 更新URL hash
+                window.location.hash = viewName === 'form' ? 'form' : 'admin';
+            }
+
+            function switchToInventory() {
+                switchView('admin');
+                // 切换到库存标签
+                setTimeout(() => {
+                    const tabBtn = document.querySelector('[data-tab="tab-inventory"]');
+                    if (tabBtn) tabBtn.click();
+                }, 200);
+            }
+
+            // ==================== 设置默认日期 ====================
+            function setDefaultDates() {
+                const today = new Date().toISOString().split('T')[0];
+                const dateInputs = ['inDate', 'outDate', 'formDate'];
+                dateInputs.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el && !el.value) el.value = today;
+                });
+            }
+
+            // ==================== 填充物品下拉列表 ====================
+            function populateItemSelects() {
+                const selects = ['inItemSelect', 'outItemSelect'];
+                selects.forEach(sid => {
+                    const sel = document.getElementById(sid);
+                    if (!sel) return;
+                    const currentVal = sel.value;
+                    sel.innerHTML = '<option value="">-- 请选择物品 --</option>';
+                    items.forEach(item => {
+                        sel.innerHTML +=
+                            `<option value="${item.id}" ${String(item.id) === currentVal ? 'selected' : ''}>${item.name} (库存: ${item.quantity} ${item.unit})</option>`;
+                    });
+                });
+            }
+
+            function populateFormItemSelect() {
+                const sel = document.getElementById('formItemSelect');
+                if (!sel) return;
+                const currentVal = sel.value;
+                sel.innerHTML = '<option value="">-- 请选择物品 --</option>';
+                const availableItems = items.filter(item => item.quantity > 0);
+                if (availableItems.length === 0) {
+                    sel.innerHTML += '<option value="" disabled>⚠️ 暂无库存可领用</option>';
+                } else {
+                    availableItems.forEach(item => {
+                        const selected = String(item.id) === currentVal ? 'selected' : '';
+                        sel.innerHTML +=
+                            `<option value="${item.id}" ${selected}>${item.name} (库存: ${item.quantity} ${item.unit})</option>`;
+                    });
+                }
+                // 同时标记缺货物品
+                const outOfStock = items.filter(item => item.quantity <= 0);
+                if (outOfStock.length > 0) {
+                    sel.innerHTML += '<option value="" disabled>──── 以下缺货 ────</option>';
+                    outOfStock.forEach(item => {
+                        sel.innerHTML +=
+                            `<option value="${item.id}" disabled style="color:#999;">${item.name} (缺货)</option>`;
+                    });
+                }
+            }
+
+            function populateAllItemSelects() {
+                populateItemSelects();
+                populateFormItemSelect();
+            }
+
+            // ==================== 库存渲染 ====================
+            function renderInventory() {
+                const tbody = document.getElementById('inventoryTableBody');
+                const searchTerm = (document.getElementById('inventorySearch')?.value || '').toLowerCase();
+                let filtered = items;
+                if (searchTerm) {
+                    filtered = items.filter(item =>
+                        item.name.toLowerCase().includes(searchTerm) ||
+                        (item.category || '').toLowerCase().includes(searchTerm)
+                    );
+                }
+                if (filtered.length === 0) {
+                    tbody.innerHTML =
+                        '<tr><td colspan="7" class="empty-state"><span class="icon">📭</span><br>没有匹配的物品</td></tr>';
+                } else {
+                    tbody.innerHTML = filtered.map(item => {
+                        const isLow = item.quantity <= item.minStock;
+                        const statusHTML = isLow ?
+                            '<span class="stock-low">⚠️ 库存不足</span>' :
+                            '<span style="color:#10B981;">✅ 正常</span>';
+                        return `
+                            <tr>
+                                <td><strong>${escapeHTML(item.name)}</strong></td>
+                                <td>${escapeHTML(item.category || '-')}</td>
+                                <td style="font-weight:700;font-size:15px;${isLow ? 'color:#EF4444;' : ''}">${item.quantity}</td>
+                                <td>${escapeHTML(item.unit)}</td>
+                                <td>${item.minStock}</td>
+                                <td>${statusHTML}</td>
+                                <td>
+                                    <button class="btn btn-outline btn-xs" onclick="quickStockIn(${item.id})" title="快速入库">📥</button>
+                                    <button class="btn btn-outline btn-xs" onclick="editItemMinStock(${item.id})" title="编辑预警值">⚙️</button>
+                                </td>
+                            </tr>`;
+                    }).join('');
+                }
+                updateStats();
+            }
+
+            function renderAllItems() {
+                const tbody = document.getElementById('allItemsTableBody');
+                if (items.length === 0) {
+                    tbody.innerHTML =
+                        '<tr><td colspan="6" class="empty-state"><span class="icon">📭</span><br>暂无物品</td></tr>';
+                } else {
+                    tbody.innerHTML = items.map(item => `
+                        <tr>
+                            <td><strong>${escapeHTML(item.name)}</strong></td>
+                            <td>${escapeHTML(item.category || '-')}</td>
+                            <td>${escapeHTML(item.unit)}</td>
+                            <td>${item.quantity}</td>
+                            <td>${item.minStock}</td>
+                            <td>
+                                <button class="btn btn-danger btn-xs" onclick="deleteItem(${item.id})" title="删除物品">🗑</button>
+                            </td>
+                        </tr>`).join('');
+                }
+            }
+
+            function renderRecords() {
+                const tbody = document.getElementById('recordsTableBody');
+                const typeFilter = document.getElementById('recordTypeFilter')?.value || 'all';
+                const dateFilter = document.getElementById('recordDateFilter')?.value || '';
+
+                let filtered = [...records];
+                if (typeFilter !== 'all') {
+                    filtered = filtered.filter(r => r.type === typeFilter);
+                }
+                if (dateFilter) {
+                    filtered = filtered.filter(r => {
+                        const rDate = (r.date || r.createdAt || '').split('T')[0];
+                        return rDate === dateFilter;
+                    });
+                }
+                // 按时间倒序
+                filtered.sort((a, b) => {
+                    const da = new Date(a.date || a.createdAt || 0);
+                    const db = new Date(b.date || b.createdAt || 0);
+                    return db - da;
+                });
+
+                if (filtered.length === 0) {
+                    tbody.innerHTML =
+                        '<tr><td colspan="9" class="empty-state"><span class="icon">📭</span><br>暂无记录</td></tr>';
+                } else {
+                    tbody.innerHTML = filtered.map(r => {
+                        const typeTag = r.type === 'in' ?
+                            '<span class="tag tag-in">📥 入库</span>' :
+                            '<span class="tag tag-out">📤 出库</span>';
+                        const dateStr = (r.date || r.createdAt || '').split('T')[0];
+                        const timeStr = (r.date || r.createdAt || '').includes('T') ?
+                            (r.date || r.createdAt).split('T')[1]?.substring(0, 5) : '';
+                        return `
+                            <tr>
+                                <td>${dateStr} ${timeStr ? '<br><small style="color:#999;">' + timeStr + '</small>' : ''}</td>
+                                <td>${typeTag}</td>
+                                <td>${escapeHTML(r.itemName || '')}</td>
+                                <td><strong>${r.quantity}</strong></td>
+                                <td>${escapeHTML(r.person || r.operator || '-')}</td>
+                                <td>${escapeHTML(r.department || '-')}</td>
+                                <td>${escapeHTML(r.supplier || '-')}</td>
+                                <td>${escapeHTML(r.remark || '-')}</td>
+                                <td>
+                                    <button class="btn btn-danger btn-xs" onclick="deleteRecord(${r.id})" title="删除此记录（将恢复/扣减库存）">🗑</button>
+                                </td>
+                            </tr>`;
+                    }).join('');
+                }
+            }
+
+            function clearRecordFilters() {
+                const dateEl = document.getElementById('recordDateFilter');
+                const typeEl = document.getElementById('recordTypeFilter');
+                if (dateEl) dateEl.value = '';
+                if (typeEl) typeEl.value = 'all';
+                renderRecords();
+            }
+
+            function updateStats() {
+                const totalItems = items.length;
+                const totalStock = items.reduce((sum, i) => sum + i.quantity, 0);
+                const totalOut = records.filter(r => r.type === 'out').length;
+                const lowStockItems = items.filter(i => i.quantity <= i.minStock);
+                const lowStockCount = lowStockItems.length;
+
+                document.getElementById('statTotalItems').textContent = totalItems;
+                document.getElementById('statTotalStock').textContent = totalStock;
+                document.getElementById('statTotalOut').textContent = totalOut;
+                document.getElementById('statLowStock').textContent = lowStockCount;
+
+                const badge = document.getElementById('lowStockBadge');
+                const countEl = document.getElementById('lowStockCount');
+                if (lowStockCount > 0) {
+                    badge.style.display = '';
+                    countEl.textContent = lowStockCount;
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+
+            function refreshAllAdminUI() {
+                refreshData();
+                populateAllItemSelects();
+                renderInventory();
+                renderAllItems();
+                renderRecords();
+                updateStats();
+                setDefaultDates();
+            }
+
+            // ==================== 入库操作 ====================
+            function stockIn() {
+                const itemId = parseInt(document.getElementById('inItemSelect').value);
+                const quantity = parseInt(document.getElementById('inQuantity').value);
+                const supplier = document.getElementById('inSupplier').value.trim();
+                const date = document.getElementById('inDate').value;
+                const remark = document.getElementById('inRemark').value.trim();
+
+                if (!itemId || isNaN(itemId)) { showToast('请选择物品', 'warning'); return; }
+                if (!quantity || quantity <= 0) { showToast('请输入有效的入库数量', 'warning'); return; }
+                if (!date) { showToast('请选择入库日期', 'warning'); return; }
+
+                const item = items.find(i => i.id === itemId);
+                if (!item) { showToast('物品不存在', 'error'); return; }
+
+                // 更新库存
+                item.quantity += quantity;
+                saveItems(items);
+
+                // 创建记录
+                const record = {
+                    id: nextRecordId++,
+                    type: 'in',
+                    itemId: itemId,
+                    itemName: item.name,
+                    quantity: quantity,
+                    operator: '管理员',
+                    supplier: supplier || '',
+                    date: date,
+                    remark: remark || '',
+                    createdAt: new Date().toISOString(),
+                };
+                records.push(record);
+                saveRecords(records);
+
+                // 清空表单
+                document.getElementById('inQuantity').value = '1';
+                document.getElementById('inSupplier').value = '';
+                document.getElementById('inRemark').value = '';
+                setDefaultDates();
+
+                refreshAllAdminUI();
+                showToast(`✅ 入库成功！${item.name} +${quantity} ${item.unit}，当前库存：${item.quantity} ${item.unit}`);
+            }
+
+            function quickStockIn(itemId) {
+                const item = items.find(i => i.id === itemId);
+                if (!item) return;
+                const qtyStr = prompt(`请输入【${item.name}】的入库数量：`, '10');
+                if (qtyStr === null) return;
+                const qty = parseInt(qtyStr);
+                if (isNaN(qty) || qty <= 0) { showToast('请输入有效数量', 'warning'); return; }
+
+                item.quantity += qty;
+                saveItems(items);
+
+                const record = {
+                    id: nextRecordId++,
+                    type: 'in',
+                    itemId: itemId,
+                    itemName: item.name,
+                    quantity: qty,
+                    operator: '管理员',
+                    supplier: '',
+                    date: new Date().toISOString().split('T')[0],
+                    remark: '快速入库',
+                    createdAt: new Date().toISOString(),
+                };
+                records.push(record);
+                saveRecords(records);
+
+                refreshAllAdminUI();
+                showToast(`✅ 快速入库：${item.name} +${qty} ${item.unit}`);
+            }
+
+            // ==================== 出库操作（手动） ====================
+            function stockOut() {
+                const itemId = parseInt(document.getElementById('outItemSelect').value);
+                const quantity = parseInt(document.getElementById('outQuantity').value);
+                const person = document.getElementById('outPerson').value.trim();
+                const department = document.getElementById('outDepartment').value.trim();
+                const date = document.getElementById('outDate').value;
+                const remark = document.getElementById('outRemark').value.trim();
+
+                if (!itemId || isNaN(itemId)) { showToast('请选择物品', 'warning'); return; }
+                if (!quantity || quantity <= 0) { showToast('请输入有效的出库数量', 'warning'); return; }
+                if (!person) { showToast('请输入领用人姓名', 'warning'); return; }
+                if (!date) { showToast('请选择出库日期', 'warning'); return; }
+
+                const item = items.find(i => i.id === itemId);
+                if (!item) { showToast('物品不存在', 'error'); return; }
+                if (item.quantity < quantity) {
+                    showToast(`⚠️ 库存不足！${item.name} 当前库存仅 ${item.quantity} ${item.unit}`, 'error');
+                    return;
+                }
+
+                // 更新库存
+                item.quantity -= quantity;
+                saveItems(items);
+
+                // 创建记录
+                const record = {
+                    id: nextRecordId++,
+                    type: 'out',
+                    itemId: itemId,
+                    itemName: item.name,
+                    quantity: quantity,
+                    person: person,
+                    department: department || '',
+                    date: date,
+                    remark: remark || '',
+                    createdAt: new Date().toISOString(),
+                };
+                records.push(record);
+                saveRecords(records);
+
+                // 清空表单
+                document.getElementById('outQuantity').value = '1';
+                document.getElementById('outPerson').value = '';
+                document.getElementById('outDepartment').value = '';
+                document.getElementById('outRemark').value = '';
+                setDefaultDates();
+
+                refreshAllAdminUI();
+                showToast(`📤 出库成功！${item.name} -${quantity} ${item.unit}，剩余库存：${item.quantity} ${item.unit}`);
+            }
+
+            // ==================== 扫码领用提交 ====================
+            function submitFormRequest() {
+                const itemId = parseInt(document.getElementById('formItemSelect').value);
+                const quantity = parseInt(document.getElementById('formQuantity').value);
+                const person = document.getElementById('formPerson').value.trim();
+                const department = document.getElementById('formDepartment').value.trim();
+                const date = document.getElementById('formDate').value;
+                const remark = document.getElementById('formRemark').value.trim();
+
+                if (!itemId || isNaN(itemId)) { showToast('请选择领用物品', 'warning'); return; }
+                if (!quantity || quantity <= 0) { showToast('请输入有效的领用数量', 'warning'); return; }
+                if (!person) { showToast('请输入您的姓名', 'warning'); return; }
+                if (!date) { showToast('请选择领用日期', 'warning'); return; }
+
+                // 重新加载最新数据
+                refreshData();
+                const item = items.find(i => i.id === itemId);
+                if (!item) { showToast('物品不存在，请刷新页面', 'error'); return; }
+                if (item.quantity < quantity) {
+                    showToast(`⚠️ 库存不足！${item.name} 当前库存仅 ${item.quantity} ${item.unit}，请减少领用数量`, 'error');
+                    return;
+                }
+
+                // 更新库存
+                item.quantity -= quantity;
+                saveItems(items);
+
+                // 创建记录
+                const record = {
+                    id: nextRecordId++,
+                    type: 'out',
+                    itemId: itemId,
+                    itemName: item.name,
+                    quantity: quantity,
+                    person: person,
+                    department: department || '',
+                    date: date,
+                    remark: remark || '扫码领用',
+                    createdAt: new Date().toISOString(),
+                };
+                records.push(record);
+                saveRecords(records);
+
+                // 显示成功页面
+                document.getElementById('formCard').style.display = 'none';
+                const successDiv = document.getElementById('formSuccess');
+                successDiv.style.display = 'block';
+                document.getElementById('formSuccessMsg').textContent =
+                    `您已成功领用【${item.name}】${quantity} ${item.unit}，剩余库存：${item.quantity} ${item.unit}`;
+
+                showToast('✅ 领用登记成功！');
+                populateFormItemSelect();
+            }
+
+            function resetFormView() {
+                document.getElementById('formCard').style.display = '';
+                document.getElementById('formSuccess').style.display = 'none';
+                document.getElementById('formQuantity').value = '1';
+                document.getElementById('formPerson').value = '';
+                document.getElementById('formDepartment').value = '';
+                document.getElementById('formRemark').value = '';
+                setDefaultDates();
+                populateFormItemSelect();
+            }
+
+            // ==================== 物品管理 ====================
+            function addNewItem() {
+                const name = document.getElementById('newItemName').value.trim();
+                const category = document.getElementById('newItemCategory').value.trim();
+                const unit = document.getElementById('newItemUnit').value.trim() || '个';
+                const qty = parseInt(document.getElementById('newItemQty').value) || 0;
+                const minStock = parseInt(document.getElementById('newItemMinStock').value) || 5;
+
+                if (!name) { showToast('请输入物品名称', 'warning'); return; }
+                if (items.some(i => i.name === name)) {
+                    showToast('该物品名称已存在，请使用其他名称', 'warning');
+                    return;
+                }
+
+                const newItem = {
+                    id: nextItemId++,
+                    name: name,
+                    category: category || '',
+                    unit: unit,
+                    quantity: qty,
+                    minStock: minStock,
+                };
+                items.push(newItem);
+                saveItems(items);
+
+                // 如果有初始库存，创建入库记录
+                if (qty > 0) {
+                    const record = {
+                        id: nextRecordId++,
+                        type: 'in',
+                        itemId: newItem.id,
+                        itemName: newItem.name,
+                        quantity: qty,
+                        operator: '管理员',
+                        supplier: '',
+                        date: new Date().toISOString().split('T')[0],
+                        remark: '初始库存',
+                        createdAt: new Date().toISOString(),
+                    };
+                    records.push(record);
+                    saveRecords(records);
+                }
+
+                // 清空表单
+                document.getElementById('newItemName').value = '';
+                document.getElementById('newItemCategory').value = '';
+                document.getElementById('newItemUnit').value = '个';
+                document.getElementById('newItemQty').value = '0';
+                document.getElementById('newItemMinStock').value = '5';
+
+                refreshAllAdminUI();
+                showToast(`✅ 物品【${name}】添加成功！`);
+            }
+
+            function deleteItem(itemId) {
+                const item = items.find(i => i.id === itemId);
+                if (!item) return;
+                const hasRecords = records.some(r => r.itemId === itemId);
+                const warnMsg = hasRecords ?
+                    `【${item.name}】有相关的出入库记录，删除物品后记录仍会保留。\n\n确定要删除吗？` :
+                    `确定要删除物品【${item.name}】吗？`;
+                if (!confirm(warnMsg)) return;
+
+                items = items.filter(i => i.id !== itemId);
+                saveItems(items);
+                refreshAllAdminUI();
+                showToast(`🗑 物品【${item.name}】已删除`);
+            }
+
+            function editItemMinStock(itemId) {
+                const item = items.find(i => i.id === itemId);
+                if (!item) return;
+                const newVal = prompt(`设置【${item.name}】的最低库存预警值：`, item.minStock);
+                if (newVal === null) return;
+                const val = parseInt(newVal);
+                if (isNaN(val) || val < 0) { showToast('请输入有效的数值', 'warning'); return; }
+                item.minStock = val;
+                saveItems(items);
+                refreshAllAdminUI();
+                showToast(`✅ 【${item.name}】预警值已更新为 ${val}`);
+            }
+
+            // ==================== 记录删除（含库存调整） ====================
+            function deleteRecord(recordId) {
+                const record = records.find(r => r.id === recordId);
+                if (!record) return;
+                if (!confirm(
+                        `确定要删除这条${record.type === 'in' ? '入库' : '出库'}记录吗？\n\n物品：${record.itemName}\n数量：${record.quantity}\n\n删除后将自动${record.type === 'in' ? '扣减' : '恢复'}库存。`
+                        )) return;
+
+                const item = items.find(i => i.id === record.itemId);
+                if (item) {
+                    if (record.type === 'in') {
+                        // 删除入库记录 -> 扣减库存
+                        item.quantity = Math.max(0, item.quantity - record.quantity);
+                    } else {
+                        // 删除出库记录 -> 恢复库存
+                        item.quantity += record.quantity;
+                    }
+                    saveItems(items);
+                }
+                records = records.filter(r => r.id !== recordId);
+                saveRecords(records);
+                refreshAllAdminUI();
+                showToast('记录已删除，库存已自动调整');
+            }
+
+            function clearAllRecords() {
+                if (!confirm('⚠️ 确定要清空所有出入库记录吗？\n\n此操作不可恢复！（库存数量不会受影响）')) return;
+                if (!confirm('再次确认：清空所有记录？')) return;
+                records = [];
+                saveRecords(records);
+                nextRecordId = 1;
+                refreshAllAdminUI();
+                showToast('所有记录已清空');
+            }
+
+            // ==================== 导出CSV ====================
+            function exportCSV() {
+                let csv = '物品名称,分类,当前库存,单位,最低预警,状态\n';
+                items.forEach(item => {
+                    const status = item.quantity <= item.minStock ? '库存不足' : '正常';
+                    csv +=
+                        `"${item.name}","${item.category || ''}",${item.quantity},"${item.unit}",${item.minStock},"${status}"\n`;
+                });
+                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `库存报表_${new Date().toISOString().split('T')[0]}.csv`;
+                link.click();
+                URL.revokeObjectURL(url);
+                showToast('📥 库存报表已导出');
+            }
+
+            // ==================== 二维码生成 ====================
+            function getFormUrl() {
+                const currentUrl = window.location.href.split('#')[0];
+                return currentUrl + '#form';
+            }
+
+            function generateQRCode() {
+                const container = document.getElementById('qrCodeContainer');
+                const formUrl = getFormUrl();
+                document.getElementById('formUrlDisplay').textContent = formUrl;
+                container.innerHTML = '';
+
+                if (typeof QRCode !== 'undefined') {
+                    try {
+                        new QRCode(container, {
+                            text: formUrl,
+                            width: 200,
+                            height: 200,
+                            colorDark: '#1e293b',
+                            colorLight: '#ffffff',
+                            correctLevel: QRCode.CorrectLevel.M,
+                        });
+                    } catch (e) {
+                        container.innerHTML =
+                            '<p style="color:#EF4444;">二维码生成失败，请检查网络连接后刷新页面重试。</p><p style="font-size:12px;color:#999;">也可以手动使用其他工具生成以下链接的二维码：<br><code>' +
+                            formUrl + '</code></p>';
+                    }
+                } else {
+                    container.innerHTML =
+                        '<p style="color:#EF4444;">二维码库加载中，请稍候刷新页面...</p><p style="font-size:12px;color:#999;">链接：<code>' +
+                        formUrl + '</code></p>';
+                }
+            }
+
+            function regenerateQR() {
+                generateQRCode();
+                showToast('🔄 二维码已重新生成');
+            }
+
+            function printQR() {
+                const container = document.getElementById('qrCodeContainer');
+                const canvas = container.querySelector('canvas');
+                if (!canvas) {
+                    showToast('请先生成二维码', 'warning');
+                    return;
+                }
+                const imgData = canvas.toDataURL('image/png');
+                const printWindow = window.open('', '_blank', 'width=400,height=500');
+                printWindow.document.write(`
+                    <html><head><title>领用登记二维码</title>
+                    <style>
+                        body{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;margin:0;}
+                        img{max-width:300px;border:2px dashed #ccc;padding:16px;border-radius:12px;}
+                        h3{color:#333;margin-bottom:8px;}
+                        p{color:#666;font-size:13px;}
+    </style></head>
+    <body>
+        <h3>📋 办公用品领用登记</h3>
+        <img src="${imgData}" alt="二维码">
+            <p>请使用手机扫码填写领用信息</p>
+        </body></html>
+        `);
+        printWindow.document.close();
+        setTimeout(() => printWindow.print(), 600);
+    }
+
+    function copyFormUrl() {
+        const formUrl = getFormUrl();
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(formUrl).then(() => {
+                showToast('📋 领用链接已复制到剪贴板');
+            }).catch(() => {
+                fallbackCopy(formUrl);
+            });
+        } else {
+            fallbackCopy(formUrl);
+        }
+    }
+
+    function fallbackCopy(text) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try { document.execCommand('copy');
+            showToast('📋 领用链接已复制'); } catch (e) { showToast('复制失败，请手动复制链接', 'warning'); }
+        document.body.removeChild(textarea);
+    }
+
+    // ==================== HTML转义 ====================
+    function escapeHTML(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    // ==================== 初始化 ====================
+    function init() {
+        refreshData();
+        setDefaultDates();
+        populateAllItemSelects();
+        renderInventory();
+        renderAllItems();
+        renderRecords();
+        updateStats();
+
+        // 根据URL hash决定显示哪个视图
+        const hash = window.location.hash.replace('#', '');
+        if (hash === 'form') {
+            switchView('form');
+        } else {
+            switchView('admin');
+            // 在后台管理视图生成二维码
+            setTimeout(generateQRCode, 400);
+        }
+
+        // 监听hash变化
+        window.addEventListener('hashchange', () => {
+            const h = window.location.hash.replace('#', '');
+            if (h === 'form') {
+                switchView('form');
+            } else if (h === 'admin' || h === '') {
+                switchView('admin');
+                setTimeout(generateQRCode, 300);
+            }
+        });
+
+        // 后台标签切换
+        document.querySelectorAll('#adminTabNav .tab-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const tabName = this.getAttribute('data-tab');
+                // 更新按钮状态
+                document.querySelectorAll('#adminTabNav .tab-btn').forEach(b => b.classList
+                    .remove('active'));
+                this.classList.add('active');
+                // 更新面板
+                document.querySelectorAll('#viewAdmin .tab-panel').forEach(p => p.classList
+                    .remove('active'));
+                const panel = document.getElementById(tabName);
+                if (panel) panel.classList.add('active');
+                // 切换到二维码面板时生成二维码
+                if (tabName === 'tab-qrcode') {
+                    setTimeout(generateQRCode, 200);
+                }
+                // 切换面板时刷新相关数据
+                if (tabName === 'tab-records') renderRecords();
+                if (tabName === 'tab-inventory') renderInventory();
+                if (tabName === 'tab-item-mgmt') renderAllItems();
+                if (tabName === 'tab-stock-in' || tabName === 'tab-stock-out') {
+                    populateItemSelects();
+                    setDefaultDates();
+                }
+            });
+        });
+
+        // 库存搜索实时响应
+        const searchInput = document.getElementById('inventorySearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', renderInventory);
+        }
+
+        console.log('✅ 办公用品领用登记系统已就绪');
+        console.log('📋 领用表单地址：', getFormUrl());
+        console.log('💾 数据存储在浏览器 localStorage 中');
+        console.log('📱 扫码领用 -> 自动扣减库存并生成出库记录');
+        console.log('⚙️ 后台管理 -> 入库/出库/物品管理/记录查询/二维码生成');
+    }
+
+    // 启动应用
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+    // 暴露函数到全局作用域
+    window.switchView = switchView;
+    window.switchToInventory = switchToInventory;
+    window.stockIn = stockIn;
+    window.stockOut = stockOut;
+    window.quickStockIn = quickStockIn;
+    window.submitFormRequest = submitFormRequest;
+    window.resetFormView = resetFormView;
+    window.addNewItem = addNewItem;
+    window.deleteItem = deleteItem;
+    window.editItemMinStock = editItemMinStock;
+    window.deleteRecord = deleteRecord;
+    window.clearAllRecords = clearAllRecords;
+    window.clearRecordFilters = clearRecordFilters;
+    window.regenerateQR = regenerateQR;
+    window.printQR = printQR;
+    window.copyFormUrl = copyFormUrl;
+    window.exportCSV = exportCSV;
+    window.renderInventory = renderInventory;
+    window.renderRecords = renderRecords;
+})();
+</script>
+</body>
+</html>
